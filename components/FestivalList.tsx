@@ -239,21 +239,27 @@ export const FestivalList: React.FC<FestivalListProps> = ({
       });
       
       if (!response.ok) {
-        // Try to parse error response, but don't fail if it's not JSON
-        let errorMessage = `خطا در انتشار داده‌ها. کد وضعیت: ${response.status}`;
+        let errorMessage = `خطا در انتشار. کد وضعیت: ${response.status}`;
         try {
           const errorResult = await response.json();
-          if (errorResult.error) {
-            errorMessage = errorResult.error;
+          // Construct a more informative error message from the server's JSON response
+          let serverMessage = errorResult.error || 'سرور پیام خطای مشخصی ارسال نکرد.';
+          if (errorResult.details) {
+            // Check for the specific token error message
+            if (errorResult.details.includes('BLOB_READ_WRITE_TOKEN')) {
+              serverMessage = `خطا در پیکربندی سرور: توکن Vercel Blob یافت نشد. لطفاً از داشبورد Vercel، پروژه خود را با سرویس Blob یکپارچه‌سازی کنید.`;
+            } else {
+              serverMessage += ` (جزئیات: ${errorResult.details})`;
+            }
           }
+          errorMessage = serverMessage;
         } catch (e) {
-          // Not a JSON response, maybe text. Ignore if parsing fails.
+          // If the body isn't JSON or another error occurs, use the status text as a fallback.
+          errorMessage = `خطا در انتشار: ${response.statusText || 'پاسخ نامعتبر از سرور'} (کد: ${response.status})`;
         }
         throw new Error(errorMessage);
       }
 
-      // Vercel blob returns info about the stored file, which we don't need to display here.
-      // We just need to know it was successful.
       await response.json(); // Consume the success response body
 
       setPublishMessage({ type: 'success', text: `انتشار موفق! داده‌ها برای کاربران «بیننده» به‌روز شد.` });
