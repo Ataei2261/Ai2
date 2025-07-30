@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect } from 'react';
 import { FestivalsProvider, useFestivals } from './contexts/FestivalsContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -96,8 +97,6 @@ const AppContentWrapper: React.FC = () => {
    useEffect(() => {
     // Only run sync for viewers after they are authenticated.
     // This effect runs only when `isViewerSession` becomes true.
-    // `replaceAllFestivals` is intentionally omitted from dependencies to prevent an infinite loop.
-    // The function reference is stable due to useCallback in the context, but this design is safer.
     if (isViewerSession) {
       const doSync = async () => {
         setIsSyncing(true);
@@ -105,7 +104,8 @@ const AppContentWrapper: React.FC = () => {
         try {
           console.log("[Sync] Viewer session detected. Starting sync...");
           const data: AppBackup = await syncFestivalsForViewer();
-          await replaceAllFestivals(data.festivals);
+          // This call now prevents setting the global loading state, which avoids unmounting this component.
+          await replaceAllFestivals(data.festivals, { setGlobalLoading: false });
           console.log(`[Sync] Sync completed successfully. ${data.festivals.length} festivals loaded.`);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during sync.";
@@ -117,6 +117,9 @@ const AppContentWrapper: React.FC = () => {
       };
       doSync();
     }
+    // `replaceAllFestivals` is intentionally omitted from dependencies to prevent unintended re-runs.
+    // The function reference is stable due to useCallback in the context.
+    // This hook is designed to run ONLY when the user's session becomes a viewer session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isViewerSession]);
 

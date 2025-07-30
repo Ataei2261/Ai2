@@ -20,7 +20,7 @@ interface FestivalsContextType {
   addFestival: (festival: FestivalInfo) => Promise<void>;
   updateFestival: (updatedFestival: FestivalInfo) => Promise<void>;
   deleteFestival: (id: string) => Promise<void>;
-  replaceAllFestivals: (newFestivals: FestivalInfo[]) => Promise<void>;
+  replaceAllFestivals: (newFestivals: FestivalInfo[], options?: { setGlobalLoading?: boolean }) => Promise<void>;
   getFestivalById: (id: string) => FestivalInfo | undefined;
   isLoading: boolean;
   dbError: Error | null; // Renamed from storageError for clarity
@@ -100,7 +100,6 @@ export const FestivalsProvider: React.FC<{ children: ReactNode, onFestivalsChang
   }, [festivals, onFestivalsChange]);
 
   const addFestival = useCallback(async (festival: FestivalInfo) => {
-    setIsLoading(true);
     setDbError(null);
     try {
       await addFestivalDB(festival);
@@ -109,13 +108,10 @@ export const FestivalsProvider: React.FC<{ children: ReactNode, onFestivalsChang
       console.error('[FestivalsContext] Error adding festival to DB:', error);
       setDbError(error);
       throw error; // Re-throw for component-level handling if needed
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
   const updateFestival = useCallback(async (updatedFestival: FestivalInfo) => {
-    setIsLoading(true);
     setDbError(null);
     try {
       await updateFestivalDB(updatedFestival);
@@ -124,13 +120,10 @@ export const FestivalsProvider: React.FC<{ children: ReactNode, onFestivalsChang
       console.error('[FestivalsContext] Error updating festival in DB:', error);
       setDbError(error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
   const deleteFestival = useCallback(async (idToDelete: string) => {
-    setIsLoading(true);
     setDbError(null);
     try {
       await deleteFestivalDB(idToDelete);
@@ -139,13 +132,17 @@ export const FestivalsProvider: React.FC<{ children: ReactNode, onFestivalsChang
       console.error('[FestivalsContext] Error deleting festival from DB:', error);
       setDbError(error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
-  const replaceAllFestivals = useCallback(async (newFestivals: FestivalInfo[]) => {
-    setIsLoading(true);
+  const replaceAllFestivals = useCallback(async (
+    newFestivals: FestivalInfo[], 
+    options?: { setGlobalLoading?: boolean }
+  ) => {
+    const shouldSetGlobalLoading = options?.setGlobalLoading !== false;
+    if (shouldSetGlobalLoading) {
+        setIsLoading(true);
+    }
     setDbError(null);
     try {
       await clearFestivalsDB();
@@ -162,13 +159,12 @@ export const FestivalsProvider: React.FC<{ children: ReactNode, onFestivalsChang
           setFestivals(currentDbFestivals);
       } catch (reloadError) {
           console.error('[FestivalsContext] Error reloading festivals after replaceAll failure:', reloadError);
-          // If reloading also fails, we might be in a bad state.
-          // Setting festivals to an empty array or the newFestivals might be options
-          // depending on desired recovery behavior. For now, dbError reflects the primary error.
       }
       throw error; // Re-throw for component-level handling if needed
     } finally {
-      setIsLoading(false);
+      if (shouldSetGlobalLoading) {
+        setIsLoading(false);
+      }
     }
   }, []);
 

@@ -1,5 +1,7 @@
 
 
+
+
 import { GoogleGenAI, GenerateContentResponse, Part, GroundingChunk, Type } from "@google/genai";
 import { GEMINI_MODEL_TEXT, GEMINI_MODEL_VISION } from '../constants';
 import { ExtractedData } from "../types";
@@ -448,51 +450,48 @@ ${escapeStringForTemplateLiteral(userNotesForSmartAnalysis.trim())}
 `;
   }
 
-  const prompt = `
-You are an expert analyst for photography competitions. For a festival named "**${escapeStringForTemplateLiteral(festivalName)}**" with the following details:
+  const prompt = `You are an expert analyst for photography competitions. For a festival named "**${escapeStringForTemplateLiteral(festivalName)}**" with the following details:
 - Topics/Categories: ${escapeStringForTemplateLiteral(topicsString)}
 - Objectives: ${escapeStringForTemplateLiteral(objectivesString)}
 ${userNotesSection}
 
-Your task is to provide a comprehensive analysis to determine which types of photos are most likely to succeed.
+Your task is to provide a comprehensive and deep analysis to determine which types of photos are most likely to succeed.
 **You MUST use Google Search** to find information about:
-1.  **Past Editions of "${escapeStringForTemplateLiteral(festivalName)}"**: Look for past winners, recurring themes, successful styles (e.g., documentary, portrait, conceptual, fine art), and the overall aesthetic.
-2.  **Jury Members**: If possible, find the jury for the current or recent editions. Analyze their personal work, interviews, and stated judging criteria to infer their preferences.
+1.  **Past Editions of "${escapeStringForTemplateLiteral(festivalName)}"**: Look for past winners, recurring themes, successful styles (e.g., documentary, portrait, conceptual, fine art), and the overall aesthetic. **You must find and provide URLs of winning images.**
+2.  **Jury Members**: Find the jury for the current or recent editions. Analyze their personal work, interviews, and stated judging criteria to infer their preferences. **Analyze their group dynamics as well.**
 
 **Response Instructions:**
-First, write a detailed analysis in Persian prose. This should synthesize your findings from the search.
-After your prose analysis, you **MUST** provide a single, valid JSON object that summarizes your findings. The JSON object should be enclosed in a \`\`\`json markdown block and conform to the structure below. Each field in the JSON object should be a detailed string in PERSIAN.
+You **MUST** provide a well-structured response in PERSIAN using the following Markdown format. Each section **MUST** start with its specific heading on a new line. Do not include any other text before the first heading.
 
-If information for a section cannot be found, state that explicitly within the corresponding JSON string value (e.g., "اطلاعاتی در مورد داوران یافت نشد.").
+###comprehensiveAnalysis
+Your findings from researching past editions of the festival. Mention thematic patterns, successful styles, conceptual depth, and the general atmosphere of winning works. State if no history was found.
 
-**JSON Structure:**
-{
-  "comprehensiveAnalysis": "Your findings from researching past editions of the festival. Mention thematic patterns, successful styles, conceptual depth, and the general atmosphere of winning works. State if no history was found.",
-  "judgesAnalysis": "Your findings about the jury. Describe their work styles, professional backgrounds, and potential artistic preferences, explaining how these might influence selections. State explicitly if no information on judges was found.",
-  "suggestedGenres": "Based on all analysis, explain which genres (e.g., Social Documentary, Nature, Portrait, Conceptual, Fine Art) and styles (e.g., Minimalism, Surrealism, Classic, Narrative) have a higher chance of success. Justify each suggestion.",
-  "keyConcepts": "Provide several specific, creative, and actionable photography ideas and concepts that align with your analysis. For each idea, explain its connection to the festival's objectives, themes, or the jury's likely perspective.",
-  "technicalNotes": "If inferable from your analysis, mention any specific technical aspects that might be favored, such as specific lighting, advanced composition, editing style (or lack thereof), or presentation (e.g., series vs. single image).",
-  "commonMistakes": "Based on the festival's identity, point out common mistakes or misinterpretations of the themes/objectives that participants should avoid.",
-  "finalRecommendations": "A brief summary of your most important findings and key recommendations for photographers participating in this festival."
-}
+###trendAnalysis
+Analyze the festival's evolution. Have themes or winning styles changed in the last three editions? Is the festival moving towards more conceptual, minimalist, or documentary photos? Describe the trend.
 
-**Example of a complete response:**
+###judgesAnalysis
+Your findings about the jury. Describe their work styles, professional backgrounds, and potential artistic preferences. **Crucially, analyze their group dynamics:** Is there a clear common ground in their tastes? Is a conflict between the views of two key judges anticipated that the photographer should be aware of? State explicitly if no information on judges was found.
 
-این جشنواره بر عکاسی مستند اجتماعی با رویکرد انسانی تمرکز دارد. برندگان دوره‌های گذشته اغلب عکس‌هایی با روایت قوی و تاثیر احساسی بالا ارائه داده‌اند. داوران... (و ادامه تحلیل...)
+###suggestedGenres
+Based on all analysis, explain which genres (e.g., Social Documentary, Nature, Portrait, Conceptual, Fine Art) and styles (e.g., Minimalism, Surrealism, Classic, Narrative) have a higher chance of success. Justify each suggestion. Use '*' for list items.
 
-\`\`\`json
-{
-  "comprehensiveAnalysis": "این جشنواره سابقه طولانی در تقدیر از عکاسی مستند دارد...",
-  "judgesAnalysis": "هیئت داوران شامل عکاسان خبری و مستند برجسته‌ای است که ...",
-  "suggestedGenres": "عکاسی مستند اجتماعی، فوتوژورنالیسم، پرتره محیطی.",
-  "keyConcepts": "* ایده ۱: روایت داستان یک کارگر فصلی...\\n* ایده ۲: بررسی تاثیرات شهرنشینی بر جوامع سنتی...",
-  "technicalNotes": "استفاده از نور طبیعی و ویرایش حداقلی ارجح است. عکس‌های سیاه‌وسفید شانس بالایی دارند.",
-  "commonMistakes": "از ارسال عکس‌های صرفا زیبا و بدون روایت پرهیز شود. عکس‌های استیج شده یا با ویرایش سنگین معمولا رد می‌شوند.",
-  "finalRecommendations": "بر روی داستان‌گویی و ایجاد ارتباط احساسی با مخاطب تمرکز کنید."
-}
-\`\`\`
-`;
-  let apiResponseText: string | undefined;
+###keyConcepts
+Provide several specific, creative, and actionable photography ideas and concepts that align with your analysis. For each idea, explain its connection to the festival's objectives, themes, or the jury's likely perspective. Use '*' for list items.
+
+###technicalNotes
+If inferable from your analysis, mention any specific technical aspects that might be favored, such as specific lighting, advanced composition, editing style (or lack thereof), or presentation (e.g., series vs. single image).
+
+###commonMistakes
+Based on the festival's identity, point out common mistakes or misinterpretations of the themes/objectives that participants should avoid.
+
+###finalRecommendations
+A brief summary of your most important findings and key recommendations for photographers participating in this festival.
+
+###winningImages
+A list of direct URLs to winning images from past editions. Each URL on a new line. Search diligently for these. If none can be found after a thorough search, leave this section empty.
+
+**General Quality Instruction:**
+Provide your analyses in a comprehensive and in-depth manner. Avoid overly short and superficial answers. The writing style should be professional, clear, and direct.`;
 
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -506,12 +505,7 @@ If information for a section cannot be found, state that explicitly within the c
       throw new DOMException('Operation aborted by user post-API call', 'AbortError');
     }
 
-    apiResponseText = response.text;
-    const jsonString = cleanJsonString(apiResponseText);
-
-    // Validate that it's parsable JSON before returning.
-    JSON.parse(jsonString); // This will throw if invalid, which is caught below.
-    const analysisText = jsonString;
+    const analysisText = response.text.trim();
 
     let sourceUrls: { uri: string; title: string }[] = [];
 
@@ -532,11 +526,6 @@ If information for a section cannot be found, state that explicitly within the c
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
     
     const errorMessage = error instanceof Error ? error.message : String(error);
-
-    if (error instanceof SyntaxError && apiResponseText) {
-       console.error("Failed to parse JSON from Gemini for smart analysis:", error);
-       throw new Error(`Gemini returned invalid JSON for smart analysis: ${errorMessage}. Raw response: ${cleanJsonString(apiResponseText)}`);
-    }
 
     console.error("Error getting smart festival analysis via Gemini:", error);
     throw new Error(`Gemini API error during smart analysis: ${errorMessage}`);

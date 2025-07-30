@@ -3,7 +3,7 @@ import { useFestivals } from '../contexts/FestivalsContext';
 import { FestivalInfo, JalaliDate } from '../types';
 import { jalaaliToday, jalaaliMonthLength, toJalaali, toGregorian, weekDay, parseJalaliDate, formatGregorianDate } from '../utils/dateConverter';
 import { PERSIAN_MONTH_NAMES, PERSIAN_WEEK_DAYS_SHORT } from '../constants';
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, X, Calendar } from 'lucide-react';
 import { FestivalModal } from './FestivalModal';
 
 type DeadlineStatus = 'past' | 'urgent' | 'near' | 'far' | '';
@@ -16,6 +16,84 @@ interface DayCell {
   festivals: FestivalInfo[];
   deadlineStatus: DeadlineStatus; // Overall status for cell text color highlighting
 }
+
+// New Modal Component for displaying festivals of a specific day
+interface DayFestivalsListModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  dateStr: string | null;
+  festivals: FestivalInfo[];
+  onFestivalSelect: (festival: FestivalInfo) => void;
+}
+
+const DayFestivalsListModal: React.FC<DayFestivalsListModalProps> = ({
+  isOpen,
+  onClose,
+  dateStr,
+  festivals,
+  onFestivalSelect,
+}) => {
+  if (!isOpen) return null;
+
+  const handleSelectAndClose = (festival: FestivalInfo) => {
+    onFestivalSelect(festival);
+    onClose(); 
+  };
+
+  const displayDate = dateStr || 'انتخاب شده';
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      onClick={onClose}
+      dir="rtl"
+    >
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col transition-transform duration-300 ease-in-out transform"
+        style={{ transform: isOpen ? 'scale(1)' : 'scale(0.95)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-slate-700 flex-shrink-0">
+          <h3 className="text-lg font-semibold text-teal-600 dark:text-teal-400 flex items-center">
+            <Calendar className="me-3" />
+            فراخوان‌های روز: {displayDate}
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-white transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-4 overflow-y-auto">
+          {festivals.length > 0 ? (
+            <ul className="space-y-2">
+              {festivals.map(festival => (
+                <li key={festival.id}>
+                  <button
+                    onClick={() => handleSelectAndClose(festival)}
+                    className="w-full text-right rtl:text-right p-3 rounded-lg transition-all duration-200 flex justify-between items-center group bg-gray-50 hover:bg-teal-100 hover:shadow-md dark:bg-slate-800 dark:hover:bg-teal-500/20"
+                  >
+                    <span className="font-medium text-gray-800 dark:text-gray-200 group-hover:text-teal-700 dark:group-hover:text-teal-300">{festival.festivalName || 'فراخوان بدون نام'}</span>
+                    <ChevronLeft className="text-gray-400 group-hover:text-teal-500 transition-transform group-hover:translate-x-[-4px]" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+              فراخوانی برای این روز وجود ندارد.
+            </p>
+          )}
+        </div>
+         <div className="p-3 bg-gray-50 dark:bg-slate-900/50 border-t border-gray-200 dark:border-slate-700 text-center flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-gray-700 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:text-gray-200 dark:hover:bg-slate-600 rounded-md transition-colors"
+          >
+            بستن
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 const getFestivalDeadlineStatus = (festival: FestivalInfo): DeadlineStatus => {
   let deadlineDateObj: Date | null = null;
@@ -91,6 +169,7 @@ export const CalendarView: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState<JalaliDate>({ jy: todayJalali.jy, jm: todayJalali.jm, jd: 1 });
   const [selectedDayFestivals, setSelectedDayFestivals] = useState<FestivalInfo[]>([]);
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
+  const [isDayListModalOpen, setIsDayListModalOpen] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [festivalForModal, setFestivalForModal] = useState<FestivalInfo | null>(null);
@@ -190,8 +269,14 @@ export const CalendarView: React.FC = () => {
         setSelectedDateStr(null);
         return;
     }
+    // Always update selection for visual feedback on click
     setSelectedDayFestivals(dayCell.festivals);
     setSelectedDateStr(dayCell.dateStr);
+
+    // Open modal only if there are festivals on that day
+    if (dayCell.festivals.length > 0) {
+        setIsDayListModalOpen(true);
+    }
   };
 
   const openFestivalModal = (festival: FestivalInfo) => {
@@ -334,34 +419,13 @@ export const CalendarView: React.FC = () => {
         })}
       </div>
 
-      {selectedDateStr && (
-        <div className="mt-6 sm:mt-8 p-4 sm:p-5 bg-slate-800/60 dark:bg-black/50 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 dark:border-slate-600">
-          <h4 className="text-base sm:text-lg font-semibold text-gray-200 dark:text-gray-300 mb-3">
-            مهلت‌های ارسال در تاریخ {selectedDateStr}:
-          </h4>
-          {selectedDayFestivals.length > 0 ? (
-            <ul className="space-y-1.5">
-              {selectedDayFestivals.map(f => (
-                <li key={f.id} className="text-sm flex justify-between items-center gap-2 py-2 border-b border-slate-700/70 dark:border-slate-600/70 last:border-b-0">
-                  <button
-                    onClick={() => openFestivalModal(f)}
-                    className="text-gray-300 hover:text-pink-400 dark:text-gray-200 dark:hover:text-pink-300 font-medium focus:outline-none text-right truncate flex-1 min-w-0"
-                    aria-label={`نمایش جزئیات ${f.festivalName || 'فراخوان'}`}
-                    title={f.festivalName || "فراخوان بدون نام"}
-                  >
-                    {f.festivalName || "فراخوان بدون نام"}
-                  </button>
-                  
-                </li>
-              ))}
-            </ul>
-          ) : (
-             <p className="text-center text-gray-400 dark:text-gray-500 py-3">
-                هیچ مهلتی برای تاریخ {selectedDateStr} ثبت نشده است.
-             </p>
-          )}
-        </div>
-      )}
+      <DayFestivalsListModal
+        isOpen={isDayListModalOpen}
+        onClose={() => setIsDayListModalOpen(false)}
+        dateStr={selectedDateStr}
+        festivals={selectedDayFestivals}
+        onFestivalSelect={openFestivalModal}
+      />
 
       {isModalOpen && festivalForModal && (
         <FestivalModal

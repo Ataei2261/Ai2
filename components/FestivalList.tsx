@@ -3,6 +3,7 @@ import { useFestivals } from '../contexts/FestivalsContext';
 import { FestivalCard } from './FestivalCard';
 import { FestivalModal } from './FestivalModal';
 import { FestivalInfo, AppBackup } from '../types';
+import { ConfirmationModal } from './ConfirmationModal';
 import { Search, Calendar as CalendarIcon, Download as DownloadIconLucide, Save, FolderOpen, AlertTriangle, CheckCircle, Upload, RotateCcw, ArrowDownUp, X, ListChecks, Send } from 'lucide-react';
 import { PERSIAN_MONTH_NAMES_WITH_ALL } from '../constants';
 import { parseJalaliDate, toJalaali, jalaaliToday, toGregorian } from '../utils/dateConverter';
@@ -37,11 +38,17 @@ export const FestivalList: React.FC<FestivalListProps> = ({
 
 
   const [isFileApiAvailable, setIsFileApiAvailable] = useState(false);
+  const [useLegacyFileOps, setUseLegacyFileOps] = useState(false);
   const [fileOperationLoading, setFileOperationLoading] = useState(false);
   const [fileOpMessage, setFileOpMessage] = useState<{ type: 'success' | 'error'; text: React.ReactNode } | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishMessage, setPublishMessage] = useState<{ type: 'success' | 'error'; text: React.ReactNode } | null>(null);
   const mobileUploadInputRef = useRef<HTMLInputElement>(null);
+  
+  // State for confirmation modals
+  const [showLoadSystemConfirm, setShowLoadSystemConfirm] = useState(false);
+  const [showLoadBackupConfirm, setShowLoadBackupConfirm] = useState<File | null>(null);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   
   const isAdmin = activeSession.role === 'admin';
 
@@ -110,6 +117,16 @@ export const FestivalList: React.FC<FestivalListProps> = ({
     };
 
     const result = await saveFestivalsToFileSystem(dataToSave, festivals.length > 0);
+    
+    if (result.errorCode === 'CROSS_ORIGIN_BLOCKED') {
+        console.warn("File System Access API is blocked. Switching to legacy file operations.");
+        setUseLegacyFileOps(true);
+        setFileOpMessage({ type: 'error', text: "دسترسی مستقیم به فایل‌ها مسدود است. لطفاً از دکمه «دانلود پشتیبان» استفاده کنید." });
+        setFileOperationLoading(false);
+        setTimeout(() => setFileOpMessage(null), 7000);
+        return;
+    }
+
     if (result.success) {
       setFileOpMessage({ type: 'success', text: result.message });
     } else {
@@ -118,27 +135,35 @@ export const FestivalList: React.FC<FestivalListProps> = ({
     setFileOperationLoading(false);
      setTimeout(() => setFileOpMessage(null), 5000);
   };
-
-  const handleLoadDataFromSystem = async () => {
-    const confirmation = window.confirm(
-      "بارگذاری اطلاعات از فایل، تمام اطلاعات فراخوان‌های فعلی شما را پاک کرده و با اطلاعات فایل جایگزین می‌کند. آیا مطمئن هستید؟"
-    );
-    if (!confirmation) return;
-
+  
+  const handleLoadDataFromSystem = () => {
+    setShowLoadSystemConfirm(true);
+  };
+  
+  const confirmLoadDataFromSystem = async () => {
     setFileOperationLoading(true);
     setFileOpMessage(null);
-    const result = await loadFestivalsFromFileSystem(); 
+    const result = await loadFestivalsFromFileSystem();
     
+    if (result.errorCode === 'CROSS_ORIGIN_BLOCKED') {
+        console.warn("File System Access API is blocked. Switching to legacy file operations.");
+        setUseLegacyFileOps(true);
+        setFileOpMessage({ type: 'error', text: "دسترسی مستقیم به فایل‌ها مسدود است. لطفاً از دکمه «بارگذاری پشتیبان» استفاده کنید." });
+        setFileOperationLoading(false);
+        setTimeout(() => setFileOpMessage(null), 7000);
+        return;
+    }
+
     if (result.success && result.data) {
-      const appData = result.data as AppBackup; 
-      replaceAllFestivals(appData.festivals || []); 
+      const appData = result.data as AppBackup;
+      await replaceAllFestivals(appData.festivals || []);
       
       let message = `اطلاعات فراخوان‌ها با موفقیت از فایل "${result.fileName || 'انتخابی'}" بارگذاری شد.`;
       setFileOpMessage({ type: 'success', text: message });
       setTimeout(() => setFileOpMessage(null), 5000);
     } else {
       setFileOpMessage({ type: 'error', text: result.message });
-       setTimeout(() => setFileOpMessage(null), 5000);
+      setTimeout(() => setFileOpMessage(null), 5000);
     }
     setFileOperationLoading(false);
   };
@@ -177,26 +202,24 @@ export const FestivalList: React.FC<FestivalListProps> = ({
     }
   };
 
-  const handleUploadBackupJson = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadBackupJson = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    const confirmation = window.confirm(
-      "بارگذاری اطلاعات از فایل، تمام اطلاعات فراخوان‌های فعلی شما را پاک کرده و با اطلاعات فایل جایگزین می‌کند. آیا مطمئن هستید؟"
-    );
-    if (!confirmation) {
-      if (mobileUploadInputRef.current) mobileUploadInputRef.current.value = '';
-      return;
-    }
+    setShowLoadBackupConfirm(file);
+  };
+  
+  const confirmUploadBackupJson = async () => {
+    const file = showLoadBackupConfirm;
+    if (!file) return;
 
     setFileOperationLoading(true);
     setFileOpMessage(null);
     
-    const result = await readJsonFromFile(file); 
+    const result = await readJsonFromFile(file);
 
     if (result.success && result.data) {
       const appData = result.data as AppBackup;
-      replaceAllFestivals(appData.festivals || []);
+      await replaceAllFestivals(appData.festivals || []);
       
       let message = `اطلاعات فراخوان‌ها با موفقیت از فایل "${file.name}" بارگذاری شد.`;
       setFileOpMessage({ type: 'success', text: message });
@@ -206,23 +229,20 @@ export const FestivalList: React.FC<FestivalListProps> = ({
       setTimeout(() => setFileOpMessage(null), 5000);
     }
     setFileOperationLoading(false);
-    if (mobileUploadInputRef.current) mobileUploadInputRef.current.value = ''; 
   };
   
-  const handlePublish = async () => {
+  const handlePublish = () => {
     if (noDataToSave) {
       setPublishMessage({ type: 'error', text: 'هیچ اطلاعاتی برای انتشار وجود ندارد.' });
       setTimeout(() => setPublishMessage(null), 5000);
       return;
     }
+    setShowPublishConfirm(true);
+  };
 
-    const confirmation = window.confirm(
-      `شما در حال انتشار ${festivals.length} فراخوان برای همه کاربران هستید. این عمل، داده‌های عمومی قبلی را بازنویسی می‌کند. آیا مطمئن هستید؟`
-    );
-    if (!confirmation) return;
-
+  const confirmPublish = async () => {
     setIsPublishing(true);
-    setPublishMessage(null); // Clear previous messages
+    setPublishMessage(null);
 
     try {
       const payload = {
@@ -242,10 +262,8 @@ export const FestivalList: React.FC<FestivalListProps> = ({
         let errorMessage = `خطا در انتشار. کد وضعیت: ${response.status}`;
         try {
           const errorResult = await response.json();
-          // Construct a more informative error message from the server's JSON response
           let serverMessage = errorResult.error || 'سرور پیام خطای مشخصی ارسال نکرد.';
           if (errorResult.details) {
-            // Check for the specific token error message
             if (errorResult.details.includes('BLOB_READ_WRITE_TOKEN')) {
               serverMessage = `خطا در پیکربندی سرور: توکن Vercel Blob یافت نشد. لطفاً از داشبورد Vercel، پروژه خود را با سرویس Blob یکپارچه‌سازی کنید.`;
             } else {
@@ -254,7 +272,6 @@ export const FestivalList: React.FC<FestivalListProps> = ({
           }
           errorMessage = serverMessage;
         } catch (e) {
-          // If the body isn't JSON or another error occurs, use the status text as a fallback.
           errorMessage = `خطا در انتشار: ${response.statusText || 'پاسخ نامعتبر از سرور'} (کد: ${response.status})`;
         }
         throw new Error(errorMessage);
@@ -286,7 +303,7 @@ export const FestivalList: React.FC<FestivalListProps> = ({
       setPublishMessage({ type: 'error', text: `خطا در انتشار: ${err.message}` });
     } finally {
       setIsPublishing(false);
-      setTimeout(() => setPublishMessage(null), 20000); // Increased timeout for the detailed message
+      setTimeout(() => setPublishMessage(null), 20000);
     }
   };
 
@@ -412,7 +429,8 @@ export const FestivalList: React.FC<FestivalListProps> = ({
   if (contextIsLoading && festivals.length === 0 && !emergencyFilterSource) {
     return <div className="text-center py-10 text-gray-500 dark:text-gray-300">در حال بارگذاری لیست فراخوان‌ها...</div>;
   }
-
+  
+  const showModernFileButtons = isFileApiAvailable && !useLegacyFileOps;
   const noDataToSave = festivals.length === 0; 
   const pageTitle = emergencyFilterType 
     ? `لیست فراخوان‌ها (${emergencyFilterType === 'critical' ? 'فقط هشدارهای فوری' : 'فقط مهلت‌های نزدیک'})` 
@@ -424,7 +442,7 @@ export const FestivalList: React.FC<FestivalListProps> = ({
             <h2 className="text-3xl font-semibold text-teal-700 dark:text-teal-400 mb-6 text-center">{pageTitle}</h2>
             {isAdmin && (
               <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md flex flex-col sm:flex-row gap-4 items-center justify-center">
-                  {isFileApiAvailable ? (
+                  {showModernFileButtons ? (
                     <>
                       <button
                         onClick={handleSaveDataToSystem}
@@ -494,6 +512,27 @@ export const FestivalList: React.FC<FestivalListProps> = ({
             <div className="text-center py-10 text-gray-500 dark:text-gray-400">
                 هنوز هیچ فراخوانی اضافه نشده است. {isAdmin && "یک فایل جدید بارگذاری کنید تا شروع کنید!"}
             </div>
+            {showLoadSystemConfirm && (
+              <ConfirmationModal
+                isOpen={showLoadSystemConfirm}
+                onClose={() => setShowLoadSystemConfirm(false)}
+                onConfirm={confirmLoadDataFromSystem}
+                title="تایید بارگذاری اطلاعات"
+                message="بارگذاری اطلاعات از فایل، تمام اطلاعات فراخوان‌های فعلی شما را پاک کرده و با اطلاعات فایل جایگزین می‌کند. آیا مطمئن هستید؟"
+              />
+            )}
+            {showLoadBackupConfirm && (
+              <ConfirmationModal
+                isOpen={!!showLoadBackupConfirm}
+                onClose={() => {
+                  setShowLoadBackupConfirm(null);
+                  if (mobileUploadInputRef.current) mobileUploadInputRef.current.value = '';
+                }}
+                onConfirm={confirmUploadBackupJson}
+                title="تایید بارگذاری اطلاعات"
+                message="بارگذاری اطلاعات از فایل، تمام اطلاعات فراخوان‌های فعلی شما را پاک کرده و با اطلاعات فایل جایگزین می‌کند. آیا مطمئن هستید؟"
+              />
+            )}
         </div>
     );
   }
@@ -605,7 +644,7 @@ export const FestivalList: React.FC<FestivalListProps> = ({
       {/* Data Management Buttons (Save/Load/Publish) */}
       {isAdmin && (
         <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md flex flex-col sm:flex-row flex-wrap gap-4 items-center justify-center">
-          {isFileApiAvailable ? (
+          {showModernFileButtons ? (
             <>
               <button
                 onClick={handleSaveDataToSystem}
@@ -716,6 +755,41 @@ export const FestivalList: React.FC<FestivalListProps> = ({
           onClose={handleCloseModal}
           festivalData={selectedFestival}
           isEditing={true}
+        />
+      )}
+      {showLoadSystemConfirm && (
+        <ConfirmationModal
+          isOpen={showLoadSystemConfirm}
+          onClose={() => setShowLoadSystemConfirm(false)}
+          onConfirm={confirmLoadDataFromSystem}
+          title="تایید بارگذاری اطلاعات"
+          message="بارگذاری اطلاعات از فایل، تمام اطلاعات فراخوان‌های فعلی شما را پاک کرده و با اطلاعات فایل جایگزین می‌کند. آیا مطمئن هستید؟"
+        />
+      )}
+      {showLoadBackupConfirm && (
+        <ConfirmationModal
+          isOpen={!!showLoadBackupConfirm}
+          onClose={() => {
+            setShowLoadBackupConfirm(null);
+            if (mobileUploadInputRef.current) mobileUploadInputRef.current.value = '';
+          }}
+          onConfirm={confirmUploadBackupJson}
+          title="تایید بارگذاری اطلاعات"
+          message="بارگذاری اطلاعات از فایل، تمام اطلاعات فراخوان‌های فعلی شما را پاک کرده و با اطلاعات فایل جایگزین می‌کند. آیا مطمئن هستید؟"
+        />
+      )}
+      {showPublishConfirm && (
+        <ConfirmationModal
+          isOpen={showPublishConfirm}
+          onClose={() => setShowPublishConfirm(false)}
+          onConfirm={confirmPublish}
+          title="تایید انتشار اطلاعات"
+          message={
+            <>
+              <p>شما در حال انتشار <strong>{festivals.length}</strong> فراخوان برای همه کاربران هستید.</p>
+              <p className="mt-1">این عمل، داده‌های عمومی قبلی را بازنویسی می‌کند. آیا مطمئن هستید؟</p>
+            </>
+          }
         />
       )}
     </div>

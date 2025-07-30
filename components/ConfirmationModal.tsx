@@ -53,7 +53,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             }}
           >
             <Check className="me-2 h-5 w-5 sm:hidden" />
-            تایید حذف
+            تایید
           </button>
           <button
             type="button"

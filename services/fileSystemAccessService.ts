@@ -1,4 +1,3 @@
-
 import { FestivalInfo, AppBackup } from '../types';
 
 // Type definitions for File System Access API
@@ -100,11 +99,12 @@ declare global {
 }
 
 
-export interface FileSystemAccessResult<T = any> { // Changed T default to any to accommodate AppBackup
+export interface FileSystemAccessResult<T = any> {
   success: boolean;
   message: string;
   data?: T;
-  fileName?: string; // Added to return filename on load
+  fileName?: string;
+  errorCode?: 'CROSS_ORIGIN_BLOCKED';
 }
 
 export function canUseFileSystemAccessApi(): boolean {
@@ -145,7 +145,8 @@ export async function saveFestivalsToFileSystem(dataToSave: AppBackup, hasData: 
     if (error.message && typeof error.message === 'string' && error.message.toLowerCase().includes('cross origin sub frame')) {
       return { 
         success: false, 
-        message: 'مرورگر اجازه دسترسی مستقیم به فایل‌ها را در این محیط نداد. این ممکن است به دلیل محدودیت‌های امنیتی (مانند اجرا در یک فریم تو در تو با مبدا متفاوت) باشد.' 
+        message: 'مرورگر اجازه دسترسی مستقیم به فایل‌ها را در این محیط نداد. این ممکن است به دلیل محدودیت‌های امنیتی (مانند اجرا در یک فریم تو در تو با مبدا متفاوت) باشد.',
+        errorCode: 'CROSS_ORIGIN_BLOCKED'
       };
     }
     return { success: false, message: `خطا در ذخیره‌سازی فایل: ${error.message}` };
@@ -191,7 +192,8 @@ export async function loadFestivalsFromFileSystem(): Promise<FileSystemAccessRes
      if (error.message && typeof error.message === 'string' && error.message.toLowerCase().includes('cross origin sub frame')) {
       return { 
         success: false, 
-        message: 'مرورگر اجازه دسترسی مستقیم به فایل‌ها را در این محیط نداد. این ممکن است به دلیل محدودیت‌های امنیتی (مانند اجرا در یک فریم تو در تو با مبدا متفاوت) باشد.' 
+        message: 'مرورگر اجازه دسترسی مستقیم به فایل‌ها را در این محیط نداد. این ممکن است به دلیل محدودیت‌های امنیتی (مانند اجرا در یک فریم تو در تو با مبدا متفاوت) باشد.',
+        errorCode: 'CROSS_ORIGIN_BLOCKED'
       };
     }
     return { success: false, message: `خطا در بارگذاری فایل: ${error.message}` };
