@@ -29,6 +29,7 @@ export default async function handler(request, response) {
       {
         access: 'public', // فایل باید عمومی و قابل دسترس باشد
         contentType: 'application/json', // نوع محتوای فایل
+        allowOverwrite: true, // IMPORTANT: Allow overwriting the existing file
       }
     );
 
