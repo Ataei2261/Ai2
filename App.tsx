@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { FestivalsProvider, useFestivals } from './contexts/FestivalsContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -463,15 +464,20 @@ const AppContentWrapper: React.FC = () => {
                   <div className="flex-grow">
                     <p className="font-bold">خطا در همگام‌سازی</p>
                     {isStoreNotFoundError ? (
-                      <p className="text-sm">
-                        به نظر می‌رسد هنوز داده‌ای برای نمایش منتشر نشده است یا آدرس عمومی داده‌ها صحیح نیست. لطفاً با مدیر برنامه تماس بگیرید.
-                      </p>
+                      <>
+                        <p className="text-sm">
+                          به نظر می‌رسد هنوز داده‌ای برای نمایش منتشر نشده است یا آدرس عمومی داده‌ها صحیح نیست. لطفاً با مدیر برنامه تماس بگیرید.
+                        </p>
+                         <p className="text-xs mt-1 text-orange-700 dark:text-orange-300">
+                          از مدیر بخواهید صحت آدرس عمومی داده‌ها (<code dir="ltr" className="font-mono">PUBLIC_FESTIVALS_URL</code>) را بررسی کند.
+                         </p>
+                      </>
                     ) : (
                       <p className="text-sm">
                         برنامه نتوانست آخرین اطلاعات را دریافت کند. ممکن است داده‌های نمایش داده شده قدیمی باشند.
                       </p>
                     )}
-                    <p className="text-xs mt-1 text-orange-700 dark:text-orange-300">جزئیات فنی: {syncError}</p>
+                    <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">جزئیات فنی: {syncError}</p>
                   </div>
                 </div>
               </div>

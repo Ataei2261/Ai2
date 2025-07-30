@@ -38,9 +38,9 @@ export const FestivalList: React.FC<FestivalListProps> = ({
 
   const [isFileApiAvailable, setIsFileApiAvailable] = useState(false);
   const [fileOperationLoading, setFileOperationLoading] = useState(false);
-  const [fileOpMessage, setFileOpMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [fileOpMessage, setFileOpMessage] = useState<{ type: 'success' | 'error'; text: React.ReactNode } | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [publishMessage, setPublishMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [publishMessage, setPublishMessage] = useState<{ type: 'success' | 'error'; text: React.ReactNode } | null>(null);
   const mobileUploadInputRef = useRef<HTMLInputElement>(null);
   
   const isAdmin = activeSession.role === 'admin';
@@ -260,16 +260,33 @@ export const FestivalList: React.FC<FestivalListProps> = ({
         throw new Error(errorMessage);
       }
 
-      await response.json(); // Consume the success response body
+      const blobResult = await response.json();
 
-      setPublishMessage({ type: 'success', text: `انتشار موفق! داده‌ها برای کاربران «بیننده» به‌روز شد.` });
+      if (!blobResult.url) {
+        throw new Error("پاسخ موفقیت‌آمیز بود اما URL فایل منتشر شده دریافت نشد. لطفاً تنظیمات Vercel Blob را بررسی کنید.");
+      }
+
+      const successMessage = (
+            <div>
+                <p className="font-semibold">انتشار موفقیت‌آمیز بود!</p>
+                <p className="text-xs mt-2">داده‌ها در آدرس عمومی زیر در دسترس قرار گرفت. کاربران «بیننده» از این آدرس برای همگام‌سازی استفاده می‌کنند.</p>
+                <div className="mt-2 p-2 bg-gray-200 dark:bg-gray-900 rounded text-xs text-blue-600 dark:text-blue-400 font-mono break-all select-all" dir="ltr">
+                    {blobResult.url}
+                </div>
+                <p className="text-xs mt-2 text-orange-600 dark:text-orange-400">
+                    <strong>مهم:</strong> اگر کاربران با خطای "داده‌ای یافت نشد" مواجه شدند، مطمئن شوید این آدرس با آدرس موجود در کد برنامه (<code className="font-mono text-black dark:text-white bg-gray-200 dark:bg-gray-700 p-0.5 rounded">constants.ts</code> &gt; <code className="font-mono text-black dark:text-white bg-gray-200 dark:bg-gray-700 p-0.5 rounded">PUBLIC_FESTIVALS_URL</code>) یکسان است.
+                </p>
+            </div>
+      );
+
+      setPublishMessage({ type: 'success', text: successMessage });
 
     } catch (error) {
       const err = error as Error;
       setPublishMessage({ type: 'error', text: `خطا در انتشار: ${err.message}` });
     } finally {
       setIsPublishing(false);
-      setTimeout(() => setPublishMessage(null), 8000);
+      setTimeout(() => setPublishMessage(null), 15000); // Increased timeout for the detailed message
     }
   };
 
@@ -667,13 +684,15 @@ export const FestivalList: React.FC<FestivalListProps> = ({
             </div>
             )}
             {publishMessage && (
-            <div className={`p-3 rounded-lg shadow-sm text-sm text-center ${publishMessage.type === 'success' 
+            <div className={`p-3 rounded-lg shadow-sm text-sm ${publishMessage.type === 'success' 
                 ? 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-200' 
                 : 'bg-red-100 text-red-800 dark:bg-red-800/40 dark:text-red-300'}`}>
-                {publishMessage.type === 'success' 
-                    ? <CheckCircle className="inline me-2 h-5 w-5 text-green-600 dark:text-green-400" /> 
-                    : <AlertTriangle className="inline me-2 h-5 w-5 text-red-600 dark:text-red-400" />}
-                {publishMessage.text}
+                <div className="flex items-start">
+                    {publishMessage.type === 'success' 
+                        ? <CheckCircle className="inline me-2 h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-1" /> 
+                        : <AlertTriangle className="inline me-2 h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-1" />}
+                    <div className="flex-grow">{publishMessage.text}</div>
+                </div>
             </div>
             )}
         </div>
