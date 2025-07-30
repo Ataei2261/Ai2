@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useFestivals } from '../contexts/FestivalsContext';
 import { FestivalCard } from './FestivalCard';
@@ -239,13 +238,25 @@ export const FestivalList: React.FC<FestivalListProps> = ({
         body: JSON.stringify(payload),
       });
       
-      const result = await response.json();
-
       if (!response.ok) {
-        throw new Error(result.message || 'خطا در انتشار داده‌ها.');
+        // Try to parse error response, but don't fail if it's not JSON
+        let errorMessage = `خطا در انتشار داده‌ها. کد وضعیت: ${response.status}`;
+        try {
+          const errorResult = await response.json();
+          if (errorResult.error) {
+            errorMessage = errorResult.error;
+          }
+        } catch (e) {
+          // Not a JSON response, maybe text. Ignore if parsing fails.
+        }
+        throw new Error(errorMessage);
       }
 
-      setPublishMessage({ type: 'success', text: `انتشار موفق! ${result.message}` });
+      // Vercel blob returns info about the stored file, which we don't need to display here.
+      // We just need to know it was successful.
+      await response.json(); // Consume the success response body
+
+      setPublishMessage({ type: 'success', text: `انتشار موفق! داده‌ها برای کاربران «بیننده» به‌روز شد.` });
 
     } catch (error) {
       const err = error as Error;
@@ -376,7 +387,7 @@ export const FestivalList: React.FC<FestivalListProps> = ({
 
 
   if (contextIsLoading && festivals.length === 0 && !emergencyFilterSource) {
-    return <div className="text-center py-10 text-gray-500">در حال بارگذاری لیست فراخوان‌ها...</div>;
+    return <div className="text-center py-10 text-gray-500 dark:text-gray-300">در حال بارگذاری لیست فراخوان‌ها...</div>;
   }
 
   const noDataToSave = festivals.length === 0; 
@@ -387,9 +398,9 @@ export const FestivalList: React.FC<FestivalListProps> = ({
   if (festivals.length === 0 && !contextIsLoading && !emergencyFilterSource) { 
     return (
         <div className="w-full" id="festival-list-container">
-            <h2 className="text-3xl font-semibold text-teal-700 mb-6 text-center">{pageTitle}</h2>
+            <h2 className="text-3xl font-semibold text-teal-700 dark:text-teal-400 mb-6 text-center">{pageTitle}</h2>
             {isAdmin && (
-              <div className="mb-6 p-4 bg-white rounded-lg shadow-md flex flex-col sm:flex-row gap-4 items-center justify-center">
+              <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md flex flex-col sm:flex-row gap-4 items-center justify-center">
                   {isFileApiAvailable ? (
                     <>
                       <button
@@ -448,12 +459,16 @@ export const FestivalList: React.FC<FestivalListProps> = ({
               </div>
             )}
             {fileOpMessage && (
-              <div className={`p-3 my-4 rounded-md text-sm text-center ${fileOpMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                {fileOpMessage.type === 'success' ? <CheckCircle className="inline me-2 h-5 w-5" /> : <AlertTriangle className="inline me-2 h-5 w-5" />}
-                {fileOpMessage.text}
+              <div className={`p-3 my-4 rounded-lg shadow-sm text-sm text-center ${fileOpMessage.type === 'success' 
+                  ? 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-200' 
+                  : 'bg-red-100 text-red-800 dark:bg-red-800/40 dark:text-red-300'}`}>
+                  {fileOpMessage.type === 'success' 
+                      ? <CheckCircle className="inline me-2 h-5 w-5 text-green-600 dark:text-green-400" /> 
+                      : <AlertTriangle className="inline me-2 h-5 w-5 text-red-600 dark:text-red-400" />}
+                  {fileOpMessage.text}
               </div>
             )}
-            <div className="text-center py-10 text-gray-500">
+            <div className="text-center py-10 text-gray-500 dark:text-gray-400">
                 هنوز هیچ فراخوانی اضافه نشده است. {isAdmin && "یک فایل جدید بارگذاری کنید تا شروع کنید!"}
             </div>
         </div>
@@ -461,25 +476,25 @@ export const FestivalList: React.FC<FestivalListProps> = ({
   }
   
   const dateFilterButtonBaseClasses = "px-3 py-2 text-xs sm:text-sm rounded-md font-medium flex items-center transition-colors duration-150 ease-in-out whitespace-nowrap";
-  const dateFilterButtonActiveClasses = "bg-teal-600 text-white shadow-md";
-  const dateFilterButtonInactiveClasses = "bg-gray-200 text-gray-700 hover:bg-gray-300";
+  const dateFilterButtonActiveClasses = "bg-teal-600 text-white shadow-md dark:bg-teal-500";
+  const dateFilterButtonInactiveClasses = "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600";
   const filterControlDisabledClasses = "opacity-50 cursor-not-allowed";
 
   return (
     <div className="w-full" id="festival-list-container">
-      <h2 className="text-3xl font-semibold text-teal-700 mb-6 text-center">{pageTitle}</h2>
+      <h2 className="text-3xl font-semibold text-teal-700 dark:text-teal-400 mb-6 text-center">{pageTitle}</h2>
 
       {emergencyFilterType && (
-        <div className="mb-4 p-3 bg-sky-100 text-sky-700 rounded-lg shadow flex justify-between items-center">
+        <div className="mb-4 p-3 bg-sky-100 dark:bg-sky-800/40 text-sky-700 dark:text-sky-200 rounded-lg shadow flex justify-between items-center">
           <div className="flex items-center">
-            <AlertTriangle size={20} className="me-2 text-sky-600" />
+            <AlertTriangle size={20} className="me-2 text-sky-600 dark:text-sky-400" />
             <span className="font-semibold">
               فیلتر فعال: {emergencyFilterType === 'critical' ? 'هشدارهای فوری' : 'مهلت‌های نزدیک'}
             </span>
           </div>
           <button
             onClick={clearActiveEmergencyFilter}
-            className="text-sky-600 hover:text-sky-800 text-sm font-medium px-3 py-1 rounded-md hover:bg-sky-200 transition-colors flex items-center"
+            className="text-sky-600 dark:text-sky-300 hover:text-sky-800 dark:hover:text-sky-100 text-sm font-medium px-3 py-1 rounded-md hover:bg-sky-200 dark:hover:bg-sky-700 transition-colors flex items-center"
             title="پاک کردن این فیلتر ویژه"
           >
             <X size={16} className="me-1" /> پاک کردن فیلتر
@@ -488,7 +503,7 @@ export const FestivalList: React.FC<FestivalListProps> = ({
       )}
       
       {/* Filter Bar */}
-      <div className={`mb-6 p-3 bg-white rounded-lg shadow-md flex flex-wrap gap-3 items-stretch ${emergencyFilterType ? 'opacity-70 pointer-events-none' : ''}`}>
+      <div className={`mb-6 p-3 bg-white dark:bg-gray-800 rounded-lg shadow-md flex flex-wrap gap-3 items-stretch ${emergencyFilterType ? 'opacity-70 pointer-events-none' : ''}`}>
         {/* Date Range Filter Buttons */}
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto order-1">
           <button
@@ -522,19 +537,19 @@ export const FestivalList: React.FC<FestivalListProps> = ({
           <input 
             type="text"
             placeholder="جستجو بر اساس نام، موضوع یا اهداف..."
-            className="w-full p-3 ps-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-shadow bg-white text-gray-900 placeholder-gray-500 text-sm"
+            className="w-full p-3 ps-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-shadow bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm"
             value={searchTerm}
             onChange={handleSearchChange}
             aria-label="متن جستجو"
             disabled={!!emergencyFilterType}
           />
-          <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
         </div>
 
         {/* Month Dropdown */}
         <div className="relative w-full sm:w-auto sm:min-w-[150px] order-3">
           <select
-            className={`w-full p-3 ps-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 appearance-none bg-white text-gray-900 transition-shadow text-sm ${emergencyFilterType || (activeDateFilter === 'currentMonth') ? filterControlDisabledClasses : ''}`}
+            className={`w-full p-3 ps-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-shadow text-sm ${emergencyFilterType || (activeDateFilter === 'currentMonth') ? filterControlDisabledClasses : ''}`}
             value={selectedShamsiMonth}
             onChange={handleMonthDropdownChange}
             aria-label="فیلتر بر اساس ماه شمسی"
@@ -544,13 +559,13 @@ export const FestivalList: React.FC<FestivalListProps> = ({
               <option key={index} value={index}>{monthName}</option> 
             ))}
           </select>
-          <CalendarIcon className="absolute start-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+          <CalendarIcon className="absolute start-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500 pointer-events-none" />
         </div>
         
         {/* Submitted Status Dropdown */}
         <div className="relative w-full sm:w-auto sm:min-w-[170px] order-4">
           <select
-            className={`w-full p-3 ps-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 appearance-none bg-white text-gray-900 transition-shadow text-sm ${emergencyFilterType ? filterControlDisabledClasses : ''}`}
+            className={`w-full p-3 ps-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 appearance-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-shadow text-sm ${emergencyFilterType ? filterControlDisabledClasses : ''}`}
             value={submittedStatusFilter}
             onChange={handleSubmittedStatusChange}
             aria-label="فیلتر بر اساس وضعیت ارسال"
@@ -560,13 +575,13 @@ export const FestivalList: React.FC<FestivalListProps> = ({
             <option value="submitted">فقط ارسال شده‌ها</option>
             <option value="notSubmitted">فقط ارسال نشده‌ها</option>
           </select>
-          <ListChecks className="absolute start-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+          <ListChecks className="absolute start-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500 pointer-events-none" />
         </div>
       </div>
       
       {/* Data Management Buttons (Save/Load/Publish) */}
       {isAdmin && (
-        <div className="mb-6 p-4 bg-white rounded-lg shadow-md flex flex-col sm:flex-row flex-wrap gap-4 items-center justify-center">
+        <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md flex flex-col sm:flex-row flex-wrap gap-4 items-center justify-center">
           {isFileApiAvailable ? (
             <>
               <button
@@ -633,23 +648,25 @@ export const FestivalList: React.FC<FestivalListProps> = ({
           </button>
         </div>
       )}
-       {isPublishing && (
-        <div className="p-3 mb-4 rounded-md text-sm text-center bg-blue-100 text-blue-700">
-          <LoadingSpinner size="5" className="inline me-2 text-blue-700" />
-          در حال انتشار داده‌ها...
-        </div>
-      )}
        {(fileOpMessage || publishMessage) && !isPublishing && (
         <div className="mb-4 space-y-2">
             {fileOpMessage && (
-            <div className={`p-3 rounded-md text-sm text-center ${fileOpMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                {fileOpMessage.type === 'success' ? <CheckCircle className="inline me-2 h-5 w-5" /> : <AlertTriangle className="inline me-2 h-5 w-5" />}
+            <div className={`p-3 rounded-lg shadow-sm text-sm text-center ${fileOpMessage.type === 'success' 
+                ? 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-200' 
+                : 'bg-red-100 text-red-800 dark:bg-red-800/40 dark:text-red-300'}`}>
+                {fileOpMessage.type === 'success' 
+                    ? <CheckCircle className="inline me-2 h-5 w-5 text-green-600 dark:text-green-400" /> 
+                    : <AlertTriangle className="inline me-2 h-5 w-5 text-red-600 dark:text-red-400" />}
                 {fileOpMessage.text}
             </div>
             )}
             {publishMessage && (
-            <div className={`p-3 rounded-md text-sm text-center ${publishMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                {publishMessage.type === 'success' ? <CheckCircle className="inline me-2 h-5 w-5" /> : <AlertTriangle className="inline me-2 h-5 w-5" />}
+            <div className={`p-3 rounded-lg shadow-sm text-sm text-center ${publishMessage.type === 'success' 
+                ? 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-200' 
+                : 'bg-red-100 text-red-800 dark:bg-red-800/40 dark:text-red-300'}`}>
+                {publishMessage.type === 'success' 
+                    ? <CheckCircle className="inline me-2 h-5 w-5 text-green-600 dark:text-green-400" /> 
+                    : <AlertTriangle className="inline me-2 h-5 w-5 text-red-600 dark:text-red-400" />}
                 {publishMessage.text}
             </div>
             )}
@@ -657,7 +674,7 @@ export const FestivalList: React.FC<FestivalListProps> = ({
       )}
 
       {filteredFestivals.length === 0 && (searchTerm || selectedShamsiMonth > 0 || submittedStatusFilter !== 'all' || (activeDateFilter !== 'currentMonth' && festivals.length > 0) || emergencyFilterType ) && (
-         <div className="text-center py-10 text-gray-500">
+         <div className="text-center py-10 text-gray-500 dark:text-gray-400">
             {festivals.length > 0 || emergencyFilterSource ? "هیچ فراخوانی با معیارهای جستجو/فیلتر شما مطابقت ندارد." : "هنوز هیچ فراخوانی برای نمایش وجود ندارد."}
         </div>
       )}

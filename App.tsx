@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect } from 'react';
 import { FestivalsProvider, useFestivals } from './contexts/FestivalsContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -41,10 +39,10 @@ function App() {
 
 const AppContentRouter: React.FC = () => {
   const { activeSession, isLoading: authIsLoading } = useAuth();
-  const { isLoading: festivalsAreLoading, festivals, dbError } = useFestivals();
+  const { isLoading: festivalsAreLoading, dbError } = useFestivals();
 
 
-  if (authIsLoading || (festivalsAreLoading && festivals.length === 0 && !dbError)) { // Show loading if auth is loading OR festivals are loading initially without errors
+  if (authIsLoading || festivalsAreLoading) { 
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center" dir="rtl">
         <LoadingSpinner size="12" color="text-teal-600 dark:text-teal-400" />
@@ -369,6 +367,7 @@ const AppContentWrapper: React.FC = () => {
     setActiveEmergencyFilterType(null);
   };
 
+  const isStoreNotFoundError = syncError?.toLowerCase().includes("store not found") || syncError?.includes("404");
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col items-center transition-colors duration-300" dir="rtl">
@@ -463,8 +462,16 @@ const AppContentWrapper: React.FC = () => {
                   <AlertTriangle className="h-6 w-6 me-3 text-orange-500 dark:text-orange-400 flex-shrink-0" />
                   <div className="flex-grow">
                     <p className="font-bold">خطا در همگام‌سازی</p>
-                    <p className="text-sm">برنامه نتوانست آخرین اطلاعات را دریافت کند. ممکن است داده‌های نمایش داده شده قدیمی باشند.</p>
-                    <p className="text-xs mt-1 text-orange-700 dark:text-orange-300">جزئیات: {syncError}</p>
+                    {isStoreNotFoundError ? (
+                      <p className="text-sm">
+                        به نظر می‌رسد هنوز داده‌ای برای نمایش منتشر نشده است یا آدرس عمومی داده‌ها صحیح نیست. لطفاً با مدیر برنامه تماس بگیرید.
+                      </p>
+                    ) : (
+                      <p className="text-sm">
+                        برنامه نتوانست آخرین اطلاعات را دریافت کند. ممکن است داده‌های نمایش داده شده قدیمی باشند.
+                      </p>
+                    )}
+                    <p className="text-xs mt-1 text-orange-700 dark:text-orange-300">جزئیات فنی: {syncError}</p>
                   </div>
                 </div>
               </div>
