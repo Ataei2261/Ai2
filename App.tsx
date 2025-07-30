@@ -91,9 +91,14 @@ const AppContentWrapper: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
 
+  const isViewerSession = activeSession.role === 'viewer' && activeSession.isAuthenticated;
+
    useEffect(() => {
-    // Only run sync for viewers after they are authenticated
-    if (activeSession.role === 'viewer' && activeSession.isAuthenticated) {
+    // Only run sync for viewers after they are authenticated.
+    // This effect runs only when `isViewerSession` becomes true.
+    // `replaceAllFestivals` is intentionally omitted from dependencies to prevent an infinite loop.
+    // The function reference is stable due to useCallback in the context, but this design is safer.
+    if (isViewerSession) {
       const doSync = async () => {
         setIsSyncing(true);
         setSyncError(null);
@@ -112,7 +117,8 @@ const AppContentWrapper: React.FC = () => {
       };
       doSync();
     }
-  }, [activeSession.role, activeSession.isAuthenticated, replaceAllFestivals]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isViewerSession]);
 
 
   useEffect(() => {
