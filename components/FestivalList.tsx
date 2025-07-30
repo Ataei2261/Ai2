@@ -286,7 +286,7 @@ export const FestivalList: React.FC<FestivalListProps> = ({
       setPublishMessage({ type: 'error', text: `خطا در انتشار: ${err.message}` });
     } finally {
       setIsPublishing(false);
-      setTimeout(() => setPublishMessage(null), 15000); // Increased timeout for the detailed message
+      setTimeout(() => setPublishMessage(null), 20000); // Increased timeout for the detailed message
     }
   };
 

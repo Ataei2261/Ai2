@@ -10,8 +10,8 @@ export const AUTH_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxTyIDU
 // !!! CRITICAL CONFIGURATION !!!
 // This URL MUST be replaced with the actual public URL of the 'updates.json' file
 // from your Vercel Blob store. After the admin publishes for the first time, the
-// correct URL will be displayed to them. Copy that URL and paste it here for the app to work.
-export const PUBLIC_FESTIVALS_URL = "https://pfelhpbe1a0v4hpv.public.blob.vercel-storage.com/updates.json";
+// correct URL will be displayed to them. Copy that URL and paste it here for the app to work for viewers.
+export const PUBLIC_FESTIVALS_URL = "https://mr2p6htig14yvrup.public.blob.vercel-storage.com/updates.json";
 
 
 export const PERSIAN_MONTH_NAMES = [

@@ -368,7 +368,7 @@ const AppContentWrapper: React.FC = () => {
     setActiveEmergencyFilterType(null);
   };
 
-  const isStoreNotFoundError = syncError?.toLowerCase().includes("store not found") || syncError?.includes("404");
+  const isStoreNotFoundError = syncError?.toLowerCase().includes("store not found") || syncError?.toLowerCase().includes("404");
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col items-center transition-colors duration-300" dir="rtl">
@@ -469,15 +469,15 @@ const AppContentWrapper: React.FC = () => {
                           به نظر می‌رسد هنوز داده‌ای برای نمایش منتشر نشده است یا آدرس عمومی داده‌ها صحیح نیست. لطفاً با مدیر برنامه تماس بگیرید.
                         </p>
                          <p className="text-xs mt-1 text-orange-700 dark:text-orange-300">
-                          از مدیر بخواهید صحت آدرس عمومی داده‌ها (<code dir="ltr" className="font-mono">PUBLIC_FESTIVALS_URL</code>) را بررسی کند.
+                          جزئیات فنی: {syncError}
                          </p>
                       </>
                     ) : (
                       <p className="text-sm">
                         برنامه نتوانست آخرین اطلاعات را دریافت کند. ممکن است داده‌های نمایش داده شده قدیمی باشند.
+                         <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">جزئیات فنی: {syncError}</p>
                       </p>
                     )}
-                    <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">جزئیات فنی: {syncError}</p>
                   </div>
                 </div>
               </div>
