@@ -1,0 +1,25 @@
+{
+  "name": "دستیار هوشمند فراخوان‌های عکاسی",
+  "short_name": "دستیار فراخوان",
+  "description": "یک برنامه وب برای بارگذاری فایل‌های PDF یا تصویری فراخوان‌های مسابقات عکاسی، استخراج خودکار اطلاعات کلیدی با استفاده از هوش مصنوعی، نمایش آن‌ها در تقویم شمسی و تنظیم یادآور. قابل نصب و با قابلیت استفاده آفلاین محدود.",
+  "icons": [
+    {
+      "src": "https://i.postimg.cc/KjHbkYkG/logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://i.postimg.cc/nVPf1CrZ/logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#f7fafc",
+  "theme_color": "#14b8a6",
+  "scope": "/",
+  "lang": "fa"
+}
