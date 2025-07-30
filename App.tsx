@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect } from 'react';
 import { FestivalsProvider, useFestivals } from './contexts/FestivalsContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -7,13 +8,15 @@ import { FileUploadArea } from './components/FileUploadArea';
 import { FestivalList } from './components/FestivalList';
 import { CalendarView } from './components/CalendarView';
 import { APP_TITLE } from './constants';
-import { AlertTriangle, CalendarDays, ListChecks, UploadCloud, LogOut, UserCircle, HelpCircle, Sun, Moon } from 'lucide-react'; // Added Sun, Moon
-import { FestivalInfo } from './types';
+import { AlertTriangle, CalendarDays, ListChecks, UploadCloud, LogOut, UserCircle, HelpCircle, Sun, Moon, Info } from 'lucide-react'; // Added Sun, Moon, Info
+import { FestivalInfo, AppBackup } from './types';
 import { parseJalaliDate, toGregorian } from './utils/dateConverter';
 import { PasswordModal } from './components/PasswordModal';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { InteractiveTour } from './components/InteractiveTour'; 
 import { useLocalStorage } from './hooks/useLocalStorage'; 
+import { syncFestivalsForViewer } from './services/syncService';
+
 
 const TOUR_COMPLETED_KEY = 'photoContestAnalyzerTourCompleted_v1';
 const HELP_BUTTON_VISIBLE_KEY = 'photoContestAnalyzerHelpButtonVisible_v1';
@@ -66,7 +69,7 @@ const AppContentRouter: React.FC = () => {
 
 
 const AppContentWrapper: React.FC = () => {
-  const { festivals, dbError: festivalsDbError } = useFestivals(); 
+  const { festivals, dbError: festivalsDbError, replaceAllFestivals } = useFestivals(); 
   const { logout, activeSession, isLoading: authContextIsLoading } = useAuth(); 
   const [criticalDeadlines, setCriticalDeadlines] = useState<FestivalInfo[]>([]);
   const [upcomingNonCriticalDeadlines, setUpcomingNonCriticalDeadlines] = useState<FestivalInfo[]>([]);
@@ -85,6 +88,33 @@ const AppContentWrapper: React.FC = () => {
 
   const [activeEmergencyFilterSource, setActiveEmergencyFilterSource] = useState<FestivalInfo[] | null>(null);
   const [activeEmergencyFilterType, setActiveEmergencyFilterType] = useState<'critical' | 'upcomingNonCritical' | null>(null);
+
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+   useEffect(() => {
+    // Only run sync for viewers after they are authenticated
+    if (activeSession.role === 'viewer' && activeSession.isAuthenticated) {
+      const doSync = async () => {
+        setIsSyncing(true);
+        setSyncError(null);
+        try {
+          console.log("[Sync] Viewer session detected. Starting sync...");
+          const data: AppBackup = await syncFestivalsForViewer();
+          await replaceAllFestivals(data.festivals);
+          console.log(`[Sync] Sync completed successfully. ${data.festivals.length} festivals loaded.`);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during sync.";
+          console.error("[Sync] Sync failed:", errorMessage);
+          setSyncError(errorMessage);
+        } finally {
+          setIsSyncing(false);
+        }
+      };
+      doSync();
+    }
+  }, [activeSession.role, activeSession.isAuthenticated, replaceAllFestivals]);
+
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -419,6 +449,35 @@ const AppContentWrapper: React.FC = () => {
       </div>
       
       <div className="w-full max-w-5xl mx-auto px-4 py-4 flex-grow">
+        {activeSession.role === 'viewer' && (
+          <div className="w-full max-w-3xl mx-auto mb-4">
+            {isSyncing && (
+              <div className="p-3 bg-blue-100 text-blue-800 dark:bg-blue-800/40 dark:text-blue-200 rounded-lg shadow-sm flex items-center animate-pulse">
+                <LoadingSpinner size="5" color="text-blue-500 dark:text-blue-400" className="me-3"/>
+                <p className="font-medium">در حال همگام‌سازی و دریافت آخرین اطلاعات...</p>
+              </div>
+            )}
+            {syncError && !isSyncing && (
+              <div className="p-4 bg-orange-100 text-orange-800 dark:bg-orange-800/40 dark:text-orange-200 border-r-4 border-orange-500 dark:border-orange-400 rounded-lg shadow">
+                <div className="flex items-start">
+                  <AlertTriangle className="h-6 w-6 me-3 text-orange-500 dark:text-orange-400 flex-shrink-0" />
+                  <div className="flex-grow">
+                    <p className="font-bold">خطا در همگام‌سازی</p>
+                    <p className="text-sm">برنامه نتوانست آخرین اطلاعات را دریافت کند. ممکن است داده‌های نمایش داده شده قدیمی باشند.</p>
+                    <p className="text-xs mt-1 text-orange-700 dark:text-orange-300">جزئیات: {syncError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+             {!isSyncing && !syncError && (
+              <div className="p-3 bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-200 rounded-lg shadow-sm flex items-center">
+                <Info size={20} className="me-3 flex-shrink-0"/>
+                <p className="text-sm">شما در حالت «بیننده» هستید. داده‌ها فقط قابل مشاهده هستند و به صورت خودکار با آخرین اطلاعات منتشر شده همگام می‌شوند.</p>
+              </div>
+            )}
+          </div>
+        )}
+
         <div id="tour-notifications-area">
           {criticalDeadlines.length > 0 && (
             <div
