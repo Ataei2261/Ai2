@@ -1,7 +1,4 @@
 
-
-
-
 import { GoogleGenAI, GenerateContentResponse, Part, GroundingChunk, Type } from "@google/genai";
 import { GEMINI_MODEL_TEXT, GEMINI_MODEL_VISION } from '../constants';
 import { ExtractedData } from "../types";
@@ -261,166 +258,6 @@ Example JSON output:
 }
 
 
-export async function extractFestivalInfoFromUrlViaGemini(url: string, signal?: AbortSignal): Promise<ExtractedData> {
-  if (!ai) {
-    throw new Error(GEMINI_CLIENT_INIT_ERROR_MESSAGE);
-  }
-  if (signal?.aborted) {
-    throw new DOMException('Operation aborted by user', 'AbortError');
-  }
-  const currentYear = new Date().getFullYear();
-  const currentJalaliYearApprox = currentYear - 621; // Approximate Jalali year
-
-  const prompt = `
-You are an expert system for extracting information about photography contests from specific websites.
-The user has provided the following URL: ${escapeStringForTemplateLiteral(url)}
-
-**Your primary task is to perform a DEEP SEARCH and thoroughly analyze the content of THIS SPECIFIC URL (${escapeStringForTemplateLiteral(url)}).**
-This includes:
--   The main page content.
--   Navigating to relevant sections like "Events", "Competitions", "News", "Archives", or specific contest pages *within the same domain*.
--   Looking for PDF links or documents that might contain the contest details.
-
-**CRITICAL FOCUS: CURRENT YEAR FESTIVALS**
--   You **MUST** prioritize finding information for festivals taking place in the **CURRENT YEAR (approximately ${currentYear} Gregorian / ${currentJalaliYearApprox}-${currentJalaliYearApprox+1} Jalali).**
--   **Actively AVOID extracting information for festivals from PREVIOUS YEARS.** If you find information for past festivals, explicitly ignore it unless it's the *only* reference and clearly states it's an recurring event with dates for the current year.
--   If the website lists multiple festivals, focus only on the one most relevant to the current year and photography.
-
-Please extract the following information and provide it in a valid JSON object format.
-If a field is not found on the target URL or its relevant current-year pages, use null or an empty array/string as appropriate.
-
-Fields to extract:
-- festivalName: string (The official name of the current year's festival. If sourced from English, translate to Persian.)
-- objectives: string (The objectives of the current year's festival. If sourced from English, translate to Persian. If not found, provide null or empty string.)
-- topicsString: string (A single string containing all themes/categories for the current year's festival, separated by commas. e.g., "Nature, Portrait". If sourced from English, translate to Persian. If not found, provide an empty string.)
-- maxPhotos: string | number (Maximum photos for the current year's festival. If a number, provide as number, otherwise string.)
-- submissionDeadlinePersian: string (Submission deadline for the current year's festival in YYYY/MM/DD Persian/Jalali format.)
-- submissionDeadlineGregorian: string (Submission deadline for the current year's festival in YYYY-MM-DD Gregorian format.)
-- imageSize: string (Image requirements for the current year's festival. e.g., "Minimum 3000px". If sourced from English, translate to Persian.)
-- submissionMethod: string (Submission method for the current year's festival. If a website, provide the direct URL. If email, provide the email address. For others, a brief description.)
-- feeStatusFree: boolean (True if participation in the current year's festival is free or no fee is mentioned. False otherwise.)
-- feeStatusPaid: boolean (True if any fee is mentioned for the current year's festival. False otherwise.)
-- feeDescription: string | null (A textual description of the fee for the current year's festival. E.g., "رایگان", "$20 per image", "First 3 images free, $5 for each additional". If no fee info, use null. If mixed, describe fully.)
-
-
-**VERY IMPORTANT:**
--   All information must pertain to the **current year's** festival.
--   If the website provides clear deadlines or fee details for the current year, use those.
--   Ensure dates are in YYYY/MM/DD (Persian) or YYYY-MM-DD (Gregorian) format.
-- For fee information, if the text clearly states "free" or "رایگان", set \`feeStatusFree: true\` and \`feeStatusPaid: false\`, with \`feeDescription\` reflecting "رایگان". If a fee is mentioned (e.g., "$20", "10 EUR per image"), set \`feeStatusPaid: true\` and detail it in \`feeDescription\`. If it's a mixed scenario (e.g., "1 photo free, then $5 each"), set both \`feeStatusFree: true\` and \`feeStatusPaid: true\`, and describe in \`feeDescription\`. If no fee info is found, set both booleans to false and \`feeDescription\` to null.
-
-
-Provide ONLY the JSON object as your response. Ensure the JSON is well-formed and all strings are properly quoted.
-Example JSON output:
-{
-  "festivalName": "جشنواره عکاسی بهار ${currentJalaliYearApprox}",
-  "objectives": "ثبت زیبایی‌های فصل بهار.",
-  "topicsString": "طبیعت بهاری, شکوفه‌ها",
-  "maxPhotos": 3,
-  "submissionDeadlinePersian": "${currentJalaliYearApprox}/02/15",
-  "submissionDeadlineGregorian": "${currentYear}-05-05",
-  "imageSize": "ضلع بزرگ حداقل 1920 پیکسل",
-  "submissionMethod": "https://example.com/spring-contest-${currentYear}/submit",
-  "feeStatusFree": true,
-  "feeStatusPaid": true,
-  "feeDescription": "عکس اول رایگان، عکس‌های بعدی هر کدام ۵ دلار"
-}
-`;
-  let apiResponseText: string | undefined;
-  let response: GenerateContentResponse;
-
-  try {
-    response = await ai.models.generateContent({
-        model: GEMINI_MODEL_TEXT,
-        contents: prompt,
-        config: {
-            tools: [{googleSearch: {}}], // Enable search
-        }
-    });
-
-    if (signal?.aborted) {
-      throw new DOMException('Operation aborted by user post-API call', 'AbortError');
-    }
-
-    apiResponseText = response.text;
-    const jsonString = cleanJsonString(apiResponseText);
-    const rawParsedData = JSON.parse(jsonString) as any;
-
-    let extractionSourceUrls: { uri: string; title: string }[] = [];
-    if (response.candidates && response.candidates[0]?.groundingMetadata?.groundingChunks) {
-      extractionSourceUrls = response.candidates[0].groundingMetadata.groundingChunks
-        .filter((chunk: GroundingChunk) => chunk.web && chunk.web.uri)
-        .map((chunk: GroundingChunk) => ({
-          uri: chunk.web!.uri!,
-          title: chunk.web!.title || chunk.web!.uri!,
-        }));
-      const inputUrlFound = extractionSourceUrls.some(source => source.uri === url);
-      if (!inputUrlFound) {
-          extractionSourceUrls.unshift({ uri: url, title: `صفحه اصلی فراخوان (ورودی کاربر)` });
-      }
-      extractionSourceUrls = Array.from(new Map(extractionSourceUrls.map(item => [item.uri, item])).values());
-    } else {
-        extractionSourceUrls.push({ uri: url, title: `صفحه اصلی فراخوان (ورودی کاربر)` });
-    }
-
-
-    const parsedData: ExtractedData = {
-        festivalName: rawParsedData.festivalName,
-        objectives: rawParsedData.objectives,
-        topics: [],
-        maxPhotos: typeof rawParsedData.maxPhotos === 'string'
-            ? convertPersianToWesternNumerals(rawParsedData.maxPhotos)
-            : rawParsedData.maxPhotos,
-        submissionDeadlineGregorian: convertPersianToWesternNumerals(rawParsedData.submissionDeadlineGregorian),
-        submissionDeadlinePersian: convertPersianToWesternNumerals(rawParsedData.submissionDeadlinePersian),
-        imageSize: rawParsedData.imageSize,
-        submissionMethod: rawParsedData.submissionMethod ? normalizeSubmissionUrl(rawParsedData.submissionMethod) : undefined,
-        feeStatusFree: typeof rawParsedData.feeStatusFree === 'boolean' ? rawParsedData.feeStatusFree : false,
-        feeStatusPaid: typeof rawParsedData.feeStatusPaid === 'boolean' ? rawParsedData.feeStatusPaid : false,
-        feeDescription: rawParsedData.feeDescription === null ? null : String(rawParsedData.feeDescription || ''),
-        extractionSourceUrls: extractionSourceUrls.length > 0 ? extractionSourceUrls : undefined,
-    };
-
-    if (rawParsedData.topicsString && typeof rawParsedData.topicsString === 'string' && rawParsedData.topicsString.trim() !== "") {
-        parsedData.topics = rawParsedData.topicsString.split(',').map((t:string) => t.trim()).filter((t:string) => t);
-    }
-    
-    if (parsedData.maxPhotos && typeof parsedData.maxPhotos === 'string' && /^\d+$/.test(parsedData.maxPhotos)) {
-        parsedData.maxPhotos = parseInt(parsedData.maxPhotos, 10);
-    }
-
-    // Ensure feeDescription is null if both statuses are false and description is empty or "null"
-    if (parsedData.feeStatusFree === false && parsedData.feeStatusPaid === false && (!parsedData.feeDescription || parsedData.feeDescription.toLowerCase() === 'null')) {
-        parsedData.feeDescription = null;
-    }
-     // If free is true, and paid is false, ensure description makes sense or is nulled
-    if (parsedData.feeStatusFree === true && parsedData.feeStatusPaid === false && parsedData.feeDescription === '') {
-        parsedData.feeDescription = "رایگان";
-    }
-
-
-    return parsedData;
-
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error;
-    console.error("Error extracting festival info from URL via Gemini:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes("quota") || errorMessage.includes("API key")) {
-         throw new Error(`Gemini API error: ${errorMessage}. Please check your API key and usage quota.`);
-    }
-    if (error instanceof SyntaxError && apiResponseText) {
-      throw new Error(`Gemini API error during URL information extraction: ${errorMessage}. Problematic JSON string: ${cleanJsonString(apiResponseText)}`);
-    }
-     if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as any).message === 'string') {
-       const geminiMessage = (error as any).message;
-       if (geminiMessage.includes("INVALID_ARGUMENT") || geminiMessage.includes("Tool use with a response mime type")){
-         throw new Error(`Gemini API configuration error: ${geminiMessage}`);
-       }
-    }
-    throw new Error(`Gemini API error during URL information extraction: ${errorMessage}`);
-  }
-}
-
 export async function getSmartFestivalAnalysisViaGemini(
   festivalName: string | undefined,
   topics: string[] | undefined,
@@ -442,11 +279,11 @@ export async function getSmartFestivalAnalysisViaGemini(
   let userNotesSection = '';
   if (userNotesForSmartAnalysis && userNotesForSmartAnalysis.trim() !== '') {
     userNotesSection = `
-**یادداشت‌های تکمیلی ارائه‌شده توسط کاربر (برای کمک به تحلیل):**
+**User-provided supplementary notes to aid analysis:**
 --- START OF USER NOTES ---
 ${escapeStringForTemplateLiteral(userNotesForSmartAnalysis.trim())}
 --- END OF USER NOTES ---
-لطفاً از این یادداشت‌ها برای تکمیل درک خود از جشنواره و ارائه تحلیل دقیق‌تر استفاده کنید.
+Please use these notes to supplement your understanding of the festival and provide a more accurate analysis.
 `;
   }
 
@@ -457,41 +294,24 @@ ${userNotesSection}
 
 Your task is to provide a comprehensive and deep analysis to determine which types of photos are most likely to succeed.
 **You MUST use Google Search** to find information about:
-1.  **Past Editions of "${escapeStringForTemplateLiteral(festivalName)}"**: Look for past winners, recurring themes, successful styles (e.g., documentary, portrait, conceptual, fine art), and the overall aesthetic. **You must find and provide URLs of winning images.**
+1.  **Past Editions of "${escapeStringForTemplateLiteral(festivalName)}"**: Look for past winners, recurring themes, successful styles (e.g., documentary, portrait, conceptual, fine art), and the overall aesthetic. The text you generate should include numbered citations (e.g., [1], [2]) for facts sourced from the web.
 2.  **Jury Members**: Find the jury for the current or recent editions. Analyze their personal work, interviews, and stated judging criteria to infer their preferences. **Analyze their group dynamics as well.**
 
 **Response Instructions:**
-You **MUST** provide a well-structured response in PERSIAN using the following Markdown format. Each section **MUST** start with its specific heading on a new line. Do not include any other text before the first heading.
+You **MUST** provide a well-structured **JSON object** in PERSIAN. The JSON object should contain the following keys. Do not include any text outside of the JSON object. Your analysis within the JSON values must cite sources using numbered brackets (e.g., [1], [2]) corresponding to the information you find.
 
-###comprehensiveAnalysis
-Your findings from researching past editions of the festival. Mention thematic patterns, successful styles, conceptual depth, and the general atmosphere of winning works. State if no history was found.
-
-###trendAnalysis
-Analyze the festival's evolution. Have themes or winning styles changed in the last three editions? Is the festival moving towards more conceptual, minimalist, or documentary photos? Describe the trend.
-
-###judgesAnalysis
-Your findings about the jury. Describe their work styles, professional backgrounds, and potential artistic preferences. **Crucially, analyze their group dynamics:** Is there a clear common ground in their tastes? Is a conflict between the views of two key judges anticipated that the photographer should be aware of? State explicitly if no information on judges was found.
-
-###suggestedGenres
-Based on all analysis, explain which genres (e.g., Social Documentary, Nature, Portrait, Conceptual, Fine Art) and styles (e.g., Minimalism, Surrealism, Classic, Narrative) have a higher chance of success. Justify each suggestion. Use '*' for list items.
-
-###keyConcepts
-Provide several specific, creative, and actionable photography ideas and concepts that align with your analysis. For each idea, explain its connection to the festival's objectives, themes, or the jury's likely perspective. Use '*' for list items.
-
-###technicalNotes
-If inferable from your analysis, mention any specific technical aspects that might be favored, such as specific lighting, advanced composition, editing style (or lack thereof), or presentation (e.g., series vs. single image).
-
-###commonMistakes
-Based on the festival's identity, point out common mistakes or misinterpretations of the themes/objectives that participants should avoid.
-
-###finalRecommendations
-A brief summary of your most important findings and key recommendations for photographers participating in this festival.
-
-###winningImages
-A list of direct URLs to winning images from past editions. Each URL on a new line. Search diligently for these. If none can be found after a thorough search, leave this section empty.
+- "comprehensiveAnalysis": (string) Your findings from researching past editions of the festival. Mention thematic patterns, successful styles, conceptual depth, and the general atmosphere of winning works. State if no history was found.
+- "trendAnalysis": (string) Analyze the festival's evolution. Have themes or winning styles changed in the last three editions? Is the festival moving towards more conceptual, minimalist, or documentary photos? Describe the trend.
+- "judgesAnalysis": (string) Your findings about the jury. Describe their work styles, professional backgrounds, and potential artistic preferences. Analyze their group dynamics. State explicitly if no information on judges was found.
+- "suggestedGenres": (string) Based on all analysis, explain which genres and styles have a higher chance of success. Justify each suggestion. Use '*' for list items within the string.
+- "keyConcepts": (string) Provide several specific, creative, and actionable photography ideas and concepts that align with your analysis. Use '*' for list items within the string.
+- "technicalNotes": (string) If inferable from your analysis, mention any specific technical aspects that might be favored.
+- "commonMistakes": (string) Based on the festival's identity, point out common mistakes or misinterpretations that participants should avoid.
+- "finalRecommendations": (string) A brief summary of your most important findings and key recommendations.
 
 **General Quality Instruction:**
-Provide your analyses in a comprehensive and in-depth manner. Avoid overly short and superficial answers. The writing style should be professional, clear, and direct.`;
+Provide your analyses in a comprehensive and in-depth manner. Avoid overly short and superficial answers. The writing style should be professional, clear, and direct. The entire JSON response should be in Persian.
+`;
 
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -505,7 +325,15 @@ Provide your analyses in a comprehensive and in-depth manner. Avoid overly short
       throw new DOMException('Operation aborted by user post-API call', 'AbortError');
     }
 
-    const analysisText = response.text.trim();
+    const analysisText = cleanJsonString(response.text.trim());
+    
+    // Validate if it's JSON before returning.
+    try {
+        JSON.parse(analysisText);
+    } catch(e) {
+        console.error("Gemini returned non-JSON for smart analysis, even when prompted for it.", analysisText);
+        throw new Error("پاسخ تحلیل هوشمند فرمت JSON معتبری نداشت.");
+    }
 
     let sourceUrls: { uri: string; title: string }[] = [];
 

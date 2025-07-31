@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { FestivalInfo, FestivalImageAnalysis } from '../types';
 import { Calendar, Edit, Trash2, FileText, Tag, Clock, Image as LucideImage, Link as LinkIcon, Maximize, ChevronDown, ChevronUp, Target, Download, Brain, Zap, ExternalLink, AlertCircle, UploadCloud, CameraOff, Info as InfoIcon, Star, ListChecks, Layers, MessageSquare, Edit3, FilePlus, XCircle, RefreshCw, FileText as FileTextIcon, CheckSquare, Square, DollarSign, CheckCircle } from 'lucide-react'; // Added DollarSign, CheckCircle
@@ -83,19 +84,21 @@ const extractTopicsFromSmartAnalysis = (smartAnalysisText?: string): string[] =>
 
 const SmartAnalysisDisplay = ({ analysisString, sourceUrls }: { analysisString: string, sourceUrls?: { uri: string; title: string }[] }) => {
     const sourcesNode = sourceUrls && sourceUrls.length > 0 ? (
-        <div key="analysis-sources" className="mt-3 pt-2 border-t border-purple-200 dark:border-purple-800/50">
-            <strong className="block my-0.5 text-purple-600 dark:text-purple-400">منابع مورد استفاده در تحلیل:</strong>
-            <ul className="space-y-0.5 list-none p-0 m-0">
+        <details key="analysis-sources" className="mt-3 pt-2 border-t border-purple-200 dark:border-purple-800/50">
+            <summary className="cursor-pointer text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300">
+                منابع مورد استفاده در تحلیل ({sourceUrls.length} منبع)
+            </summary>
+            <ol className="list-decimal list-inside space-y-1 pt-2 ps-4">
                 {sourceUrls.map((source, index) => (
                     <li key={index} className="text-2xs">
-                        <a href={source.uri} target="_blank" rel="noopener noreferrer" className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-center" title={source.uri}>
-                            <ExternalLink size={10} className="me-1 flex-shrink-0" />
-                            <span className="truncate">{source.title || source.uri}</span>
+                        <a href={source.uri} target="_blank" rel="noopener noreferrer" className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-start gap-1.5" title={source.uri}>
+                            <ExternalLink size={10} className="me-1 flex-shrink-0 mt-0.5" />
+                            <span className="flex-grow">{source.title || source.uri}</span>
                         </a>
                     </li>
                 ))}
-            </ul>
-        </div>
+            </ol>
+        </details>
     ) : null;
     
     const parseMarkdownAnalysis = (markdownText: string): Record<string, any> => {
@@ -154,18 +157,6 @@ const SmartAnalysisDisplay = ({ analysisString, sourceUrls }: { analysisString: 
                         </div>
                     </div>
                 ))}
-                {parsed.winningImages && Array.isArray(parsed.winningImages) && parsed.winningImages.length > 0 && (
-                    <div key="winning-images" className="mb-2 last:mb-0">
-                        <strong className="block my-0.5 text-purple-600">نمونه تصاویر برنده از دوره‌های گذشته:</strong>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">
-                            {parsed.winningImages.map((url: string, index: number) => (
-                                <a href={url} key={index} target="_blank" rel="noopener noreferrer" className="block border border-purple-200 dark:border-purple-800 rounded-md overflow-hidden hover:shadow-lg transition-shadow bg-purple-100 dark:bg-purple-900/50">
-                                    <img src={url} alt={`Winning image ${index + 1}`} className="w-full h-24 object-cover" loading="lazy" />
-                                </a>
-                            ))}
-                        </div>
-                    </div>
-                )}
                  {sourcesNode}
             </div>
         );
@@ -556,35 +547,6 @@ export const FestivalCard: React.FC<FestivalCardProps> = ({ festival, onEdit }) 
                         });
                     }
                 });
-
-                if (parsed.winningImages && Array.isArray(parsed.winningImages) && parsed.winningImages.length > 0) {
-                     docChildren.push(new Paragraph({
-                        text: "نمونه تصاویر برنده از دوره‌های گذشته:",
-                        alignment: AlignmentType.RIGHT,
-                        run: { font: fontName, size: sectionHeadingFontSize, bold: true },
-                        spacing: { before: 150, after: 80 },
-                    }));
-                     // Note: Embedding remote images in docx is complex and not directly supported by docx.js
-                     // We will list the URLs instead.
-                     parsed.winningImages.forEach((url: string) => {
-                         docChildren.push(new Paragraph({
-                            children: [
-                                new ExternalHyperlink({
-                                    children: [new TextRun({
-                                        text: url,
-                                        style: "Hyperlink",
-                                        font: fontName,
-                                        size: defaultFontSize,
-                                    })],
-                                    link: url,
-                                }),
-                            ],
-                            bullet: { level: 0 },
-                            alignment: AlignmentType.LEFT,
-                            spacing: { after: 50 },
-                        }));
-                     });
-                }
 
             } else {
                 throw new Error("Parsed data is not an object.");

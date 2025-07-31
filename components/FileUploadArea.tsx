@@ -3,7 +3,7 @@ import React, { useState, useCallback, useRef, DragEvent } from 'react';
 import { useFestivals } from '../contexts/FestivalsContext';
 import { FestivalInfo, ExtractedData, FestivalSourceFile } from '../types';
 import { extractTextFromPdf, fileToBase64 } from '../services/fileProcessingService';
-import { extractTextFromImageViaGemini, extractFestivalInfoFromTextViaGemini, extractFestivalInfoFromUrlViaGemini } from '../services/geminiService';
+import { extractTextFromImageViaGemini, extractFestivalInfoFromTextViaGemini } from '../services/geminiService';
 import { UploadCloud, FileText, Type, AlertCircle, CheckCircle, X, Image as ImageIcon, AlertTriangle, Edit2, XCircle, RefreshCw, Link2 } from 'lucide-react';
 import { LoadingSpinner } from './LoadingSpinner';
 import { FestivalModal } from './FestivalModal';
@@ -439,7 +439,9 @@ export const FileUploadArea: React.FC = () => {
     
     setProcessingMessage("در حال استخراج اطلاعات از URL توسط هوش مصنوعی...");
     try {
-      const data = await extractFestivalInfoFromUrlViaGemini(urlInput.trim(), signal);
+      const textForGemini = `این آدرس وب‌سایت یک فراخوان عکاسی است. لطفاً با مراجعه به آن، اطلاعات خواسته شده را استخراج کن: ${urlInput.trim()}`;
+      const data = await extractFestivalInfoFromTextViaGemini(textForGemini, urlInput.trim(), signal);
+
       if (signal.aborted) {
         throw new DOMException('Operation aborted by user', 'AbortError');
       }
